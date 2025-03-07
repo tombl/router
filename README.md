@@ -30,18 +30,18 @@ JavaScript environment.
 ```ts
 import { createMatcher } from "@tombl/router";
 
-const router = createMatcher({
+const matcher = createMatcher({
   "/": () => "Home page",
   "/about": () => "About page",
   "/users/:id": ({ id }) => `User profile: ${id}`,
   "/files/*": ({ "*": path }) => `File: ${path}`,
 });
 
-router("/"); // "Home page"
-router("/about"); // "About page"
-router("/users/123"); // "User profile: 123"
-router("/files/docs/readme"); // "File: docs/readme"
-router("/unknown"); // null (no match)
+matcher("/"); // "Home page"
+matcher("/about"); // "About page"
+matcher("/users/123"); // "User profile: 123"
+matcher("/files/docs/readme"); // "File: docs/readme"
+matcher("/unknown"); // null (no match)
 ```
 
 The router supports three types of route segments:
@@ -57,7 +57,7 @@ parameter types based on your route patterns:
 
 ```ts
 // Parameters are automatically typed based on route patterns
-const router = createMatcher({
+const matcher = createMatcher({
   "/users/:id": (params) => `User ${params.id}`, // params is typed as { id: string }
   "/posts/:postId/comments/:commentId/*": (params) => {
     // params is typed as { postId: string, commentId: string, "*": string }
@@ -74,7 +74,8 @@ type UserParams = Params<"/users/:id">; // { id: string }
 ## HTTP Router
 
 For server-side applications using the standard Request/Response API (Deno,
-Cloudflare Workers, etc.)
+Cloudflare Workers,
+[Node](https://www.npmjs.com/package/@mjackson/node-fetch-server), etc.)
 
 ```ts
 import { createHttpRouter } from "@tombl/router/http";

@@ -53,14 +53,14 @@ export type Routes<
  *
  * @example
  * ```ts
- * const router = createMatcher({
+ * const matcher = createMatcher({
  *   "/": () => "Home",
  *   "/users/:id": (params) => `User ${params.id}`,
  *   "/files/*": (params) => `File ${params["*"]}`
  * });
  *
- * router("/users/123"); // "User 123"
- * router("/files/path/to/file.txt"); // "File path/to/file.txt"
+ * matcher("/users/123"); // "User 123"
+ * matcher("/files/path/to/file.txt"); // "File path/to/file.txt"
  * ```
  */
 export function createMatcher<
