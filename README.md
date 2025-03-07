@@ -28,7 +28,7 @@ The core router provides pattern matching functionality that can be used in any
 JavaScript environment.
 
 ```ts
-import { createMatcher } from "@tombl/router";
+import { createMatcher } from "@tombl/router/matcher";
 
 const matcher = createMatcher({
   "/": () => "Home page",
@@ -112,17 +112,17 @@ Deno.serve(router.fetch);
 export default router;
 ```
 
-## Web Router
+## Browser Router
 
 > [!NOTE]
-> When bundled, minified, and gzipped, `@tombl/router/web` is 1kb
+> When bundled, minified, and gzipped, `@tombl/router/browser` is 1kb
 
 For client-side single-page applications in the browser:
 
 ```ts
-import { createWebRouter } from "@tombl/router/web";
+import { createBrowserRouter } from "@tombl/router/browser";
 
-const router = createWebRouter({
+const router = createBrowserRouter({
   routes: {
     "/": () => {
       document.body.innerHTML = "<h1>Home Page</h1>";

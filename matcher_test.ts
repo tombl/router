@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert";
-import { createMatcher } from "./mod.ts";
+import { createMatcher } from "./matcher.ts";
 
 Deno.test("router handles empty routes object", () => {
   const matcher = createMatcher({});

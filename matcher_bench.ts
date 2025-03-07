@@ -1,4 +1,4 @@
-import { createMatcher } from "./mod.ts";
+import { createMatcher } from "./matcher.ts";
 
 // Create routers outside of the benchmark functions
 // Simple static routes router

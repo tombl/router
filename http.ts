@@ -3,7 +3,7 @@
  * @module
  */
 
-import { createMatcher, type Params } from "./mod.ts";
+import { createMatcher, type Params } from "./matcher.ts";
 
 /**
  * Like a Request, but with parameters.

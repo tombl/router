@@ -4,10 +4,10 @@
  * @module
  */
 
-import { createMatcher, type Params } from "./mod.ts";
+import { createMatcher, type Params } from "./matcher.ts";
 
 /**
- * A route handler function for the web router
+ * A route handler function for the browser router
  */
 type RouteHandler<T extends string> = (params: Params<T>) => void;
 
@@ -24,9 +24,9 @@ interface RouterConfigP<R extends { [P in keyof R & string]: RouteHandler<P> }>
 }
 
 /**
- * Web Router interface for client-side navigation
+ * Browser Router interface for client-side navigation
  */
-export interface WebRouter {
+export interface BrowserRouter {
   /**
    * Navigates to a new path by pushing a new entry to the browser history
    *
@@ -61,7 +61,7 @@ export interface WebRouter {
 }
 
 /**
- * Creates a web router for client-side navigation in browser applications
+ * Creates a browser router for client-side navigation in web applications
  *
  * Features:
  * - Client-side navigation without page reloads
@@ -70,7 +70,7 @@ export interface WebRouter {
  *
  * @example
  * ```ts
- * const router = createWebRouter({
+ * const router = createBrowserRouter({
  *   routes: {
  *     "/": () => {
  *       document.body.innerHTML = "Home";
@@ -93,13 +93,13 @@ export interface WebRouter {
  * });
  * ```
  */
-export function createWebRouter<
+export function createBrowserRouter<
   Route extends { [Path in keyof Route & string]: RouteHandler<Path> },
->(config: RouterConfigP<Route>): WebRouter;
+>(config: RouterConfigP<Route>): BrowserRouter;
 
-export function createWebRouter(config: RouterConfig): WebRouter;
+export function createBrowserRouter(config: RouterConfig): BrowserRouter;
 
-export function createWebRouter(config: RouterConfig): WebRouter {
+export function createBrowserRouter(config: RouterConfig): BrowserRouter {
   // Create a route mapping with handlers wrapped to pass params
   const routes: Record<string, (params: Record<string, string>) => () => void> =
     {};

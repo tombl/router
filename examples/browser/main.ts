@@ -1,11 +1,11 @@
 /// <reference lib="dom" />
 
-import { createWebRouter } from "../../web.ts";
+import { createBrowserRouter } from "../../browser.ts";
 
 // syntax highlighting
 const html = String.raw;
 
-const router = createWebRouter({
+const router = createBrowserRouter({
   routes: {
     "/": () => {
       document.title = "Home";
