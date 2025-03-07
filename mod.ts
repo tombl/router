@@ -1,45 +1,50 @@
 import { escape } from "jsr:@std/regexp/escape";
 
-// input:
-const routes: Record<string, (params: Record<string, string>) => string> = {
-  "a": () => "A",
-  "a/:name": ({ name }) => `A ${name}`,
-  "b": () => "B",
-};
-const path = "a";
+const NAMED_SEGMENT = /^:([a-z][a-z0-9]*)$/i;
 
-// library
+/**
+ * Creates a router function that matches paths against defined routes with parameters
+ * @param routes Record mapping route patterns to handler functions
+ * @returns A function that takes a pathname and returns the handler result or null if no match
+ */
+export function createRouter<T>(
+  routes: Record<string, (params: Record<string, string>) => T>,
+): (pathname: string) => T | null {
+  const entries = Object.entries(routes);
 
-const SEGMENT = /^:([a-z][a-z0-9]*)$/i;
+  if (entries.length === 0) return () => null;
 
-const mapping = new Map<number, number>();
-let i = 0, j = 0;
+  const mapping: number[] = [];
+  let i = 0, j = 0;
 
-const regex = new RegExp(
-  Object.keys(routes)
-    .map((route) => {
-      mapping.set(i++, j++);
-      return route
-        .split("/")
-        .map((segment) => {
-          const match = SEGMENT.exec(segment);
-          if (match === null) {
-            return escape(segment);
-          } else {
-            i++;
-            return `(?<${match[1]}>[^/]+?)`;
-          }
-        })
-        .join("/");
-    })
-    .map((route) => `^(${route})$`)
-    .join("|"),
-);
+  const regex = new RegExp(
+    entries
+      .map(([route]) => {
+        mapping[i++] = j++;
+        return route
+          .split("/")
+          .map((segment) => {
+            const match = NAMED_SEGMENT.exec(segment);
+            if (match === null) {
+              return escape(segment);
+            } else {
+              i++;
+              return `(?<${match[1]}>[^/]+?)`;
+            }
+          })
+          .join("/");
+      })
+      .map((route) => `^(${route})$`)
+      .join("|"),
+  );
 
-const match = regex.exec(path);
-console.log(regex);
+  return (pathname: string): T | null => {
+    const match = regex.exec(pathname);
+    if (match === null) return null;
 
-if (match !== null) {
-  const idx = mapping.get(match.slice(1).findIndex((x) => x !== undefined))!;
-  console.log(Object.values(routes)[idx](match.groups!));
+    const idx = mapping[match.findIndex((m, i) => i && m !== undefined) - 1];
+    const fn = entries[idx][1];
+
+    return fn(match.groups!);
+  };
 }
