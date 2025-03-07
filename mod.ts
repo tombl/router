@@ -5,7 +5,7 @@
  * @module
  */
 
-import { escape } from "jsr:@std/regexp/escape";
+import { escape } from "./regexp-escape.ts";
 
 const NAMED_SEGMENT = /^:([a-z][a-z0-9]*)$/i;
 

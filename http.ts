@@ -35,6 +35,9 @@ function defaultWrongMethod(_request: Request) {
   return new Response("wrong method", { status: 405 });
 }
 
+/**
+ * Supported HTTP methods for router handlers
+ */
 export type Method =
   | "GET"
   | "POST"
@@ -88,12 +91,24 @@ export interface HttpRouter {
   fetch(request: Request): Promise<Response>;
 }
 
+function addParams<P extends string>(
+  request: Request,
+  params: Params<P>,
+): asserts request is RequestP<P> {
+  Object.defineProperty(request, "params", {
+    value: params,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
+}
+
 /**
  * Creates an HTTP router for handling HTTP requests with route-specific handlers
  *
  * Features:
  * - Route registration for different HTTP methods
- * - Parameter extraction from URL paths
+ * - Parameter extraction from URL paths with full type safety
  * - Support for standard Request/Response API
  * - Support for static responses
  *
@@ -120,21 +135,6 @@ export interface HttpRouter {
  * export default router;
  * ```
  */
-/**
- * Add parameters to a Request object, marking it as a RequestP
- */
-function addParams<P extends string>(
-  request: Request,
-  params: Params<P>,
-): asserts request is RequestP<P> {
-  Object.defineProperty(request, "params", {
-    value: params,
-    writable: true,
-    enumerable: true,
-    configurable: true,
-  });
-}
-
 export function createHttpRouter<
   Route extends { [Path in keyof Route & string]: RouteConfig<Path> },
 >(config: RouterConfigP<Route>): HttpRouter;

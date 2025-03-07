@@ -4,8 +4,6 @@
  * @module
  */
 
-/// <reference lib="dom" />
-
 import { createMatcher, type Params } from "./mod.ts";
 
 /**
@@ -96,8 +94,8 @@ export interface WebRouter {
  * ```
  */
 export function createWebRouter<
-  R extends { [P in keyof R & string]: RouteHandler<P> },
->(config: RouterConfigP<R>): WebRouter;
+  Route extends { [Path in keyof Route & string]: RouteHandler<Path> },
+>(config: RouterConfigP<Route>): WebRouter;
 
 export function createWebRouter(config: RouterConfig): WebRouter;
 

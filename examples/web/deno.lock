@@ -2,6 +2,7 @@
   "version": "4",
   "specifiers": {
     "jsr:@std/regexp@*": "1.0.1",
+    "jsr:@std/regexp@1.0.1": "1.0.1",
     "npm:@deno/vite-plugin@^1.0.4": "1.0.4_vite@6.2.1",
     "npm:vite@*": "6.2.1",
     "npm:vite@6.2.1": "6.2.1",
