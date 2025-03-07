@@ -3,7 +3,7 @@
  * @module
  */
 
-import { createRouter, type Router as Matcher, type Routes } from "./mod.ts";
+import { createRouter, type Routes } from "./mod.ts";
 
 /**
  * Like a Request, but with parameters.
@@ -25,28 +25,82 @@ type HandlerP = (request: RequestP) => Response | Promise<Response>;
 
 export type { HandlerP as Handler, RequestP as RequestWithParams };
 
-function defaultNotFound() {
+function defaultNotFound(_request: Request) {
   return new Response("not found", { status: 404 });
 }
 
-function defaultWrongMethod() {
+function defaultWrongMethod(_request: Request) {
   return new Response("wrong method", { status: 405 });
 }
 
+export type Method =
+  | "GET"
+  | "POST"
+  | "PUT"
+  | "DELETE"
+  | "PATCH"
+  | "OPTIONS"
+  | "HEAD";
+
 /**
- * HTTP Router class for handling HTTP requests with route-specific handlers
+ * Route configuration type for method-specific handlers
+ */
+type RouteMethodHandlers = {
+  [K in Method]?: HandlerP;
+};
+
+/**
+ * Route configuration type that can be:
+ * - A handler function for all methods
+ * - Method-specific handlers
+ * - A static Response (which will only be returned for GET requests, other methods will get 405)
+ */
+type RouteConfig = HandlerP | RouteMethodHandlers | Response;
+
+/**
+ * Router configuration interface
+ */
+interface RouterConfig {
+  routes: { [pathname: string]: RouteConfig };
+  notFound?: Handler;
+  wrongMethod?: Handler;
+}
+
+/**
+ * HTTP Router interface with fetch method
+ */
+export interface HttpRouter {
+  /**
+   * Handles an incoming HTTP request and returns a Response
+   *
+   * Extracts the pathname from the request URL, finds a matching route handler,
+   * and executes it. If no route matches, the notFound handler is used.
+   */
+  fetch(request: Request): Promise<Response>;
+}
+
+/**
+ * Creates an HTTP router for handling HTTP requests with route-specific handlers
  *
  * Features:
  * - Route registration for different HTTP methods
  * - Parameter extraction from URL paths
  * - Support for standard Request/Response API
+ * - Support for static responses
  *
  * @example
  * ```ts
- * const router = new Router();
- *
- * router.get("/", (req) => new Response("Home"));
- * router.get("/users/:id", (req) => new Response(`User ${req.params.id}`));
+ * const router = createHttpRouter({
+ *   routes: {
+ *     "/": req => new Response("Home"), // all methods
+ *     "/users/:id": {
+ *       GET: req => new Response(`User ${req.params.id}`), // just GET
+ *     },
+ *     "/about": new Response("About"), // static response (only works with GET requests)
+ *   },
+ *   notFound: (req) => new Response(`Not found: ${new URL(req.url).pathname}`, { status: 404 }),
+ *   wrongMethod: (req) => new Response(`Method ${req.method} not allowed for ${new URL(req.url).pathname}`, { status: 405 }),
+ * });
  *
  * // Handle requests in a service worker
  * addEventListener("fetch", (event) => {
@@ -57,102 +111,78 @@ function defaultWrongMethod() {
  * export default router;
  * ```
  */
-export class Router {
-  #routes: { [pathname: string]: { [method: string]: HandlerP } } = {};
-  #matcher: Matcher<Handler> | null = null;
+/**
+ * Add parameters to a Request object, marking it as a RequestP
+ */
+function addParams(request: Request, params: Record<string, string>): asserts request is RequestP {
+  Object.defineProperty(request, "params", {
+    value: params,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
+}
 
-  #notFound: Handler;
-  #wrongMethod: Handler;
+export function createHttpRouter(config: RouterConfig): HttpRouter {
+  const notFound = config.notFound ?? defaultNotFound;
+  const wrongMethod = config.wrongMethod ?? defaultWrongMethod;
 
-  constructor(
-    options: { notFound?: Handler; wrongMethod?: Handler } = {},
-  ) {
-    this.#notFound = options.notFound ?? defaultNotFound;
-    this.#wrongMethod = options.wrongMethod ?? defaultWrongMethod;
+  const routes: Routes<Handler> = {};
 
-    // compile the matcher at the end of the current sync scope,
-    // which should hopefully be after all the routes are setup,
-    // but before the first request.
-    queueMicrotask(() => {
-      this.#getMatcher();
-    });
-  }
-
-  #getMatcher() {
-    if (this.#matcher) return this.#matcher;
-
-    const routes: Routes<Handler> = {};
-
-    for (const [pathname, handlers] of Object.entries(this.#routes)) {
+  for (const [pathname, routeConfig] of Object.entries(config.routes)) {
+    // Create a specific handler based on routeConfig type
+    if (routeConfig instanceof Response) {
+      // Static response handler - only works for GET requests
       routes[pathname] = (params) => {
-        return async (request: Request) => {
-          Object.defineProperty(request, "params", {
-            value: params,
-            writable: true,
-            enumerable: true,
-            configurable: true,
-          });
-          const handler = handlers[request.method] ?? this.#wrongMethod;
-          return await handler(request as RequestP);
+        return (request: Request) => {
+          addParams(request, params);
+          // Only allow GET requests for static responses
+          if (request.method === "GET") {
+            return routeConfig.clone();
+          } else {
+            // Method not allowed for non-GET requests to static responses
+            return wrongMethod(request);
+          }
+        };
+      };
+    } else if (typeof routeConfig === "function") {
+      // Function handler for all methods
+      routes[pathname] = (params) => {
+        return (request: Request) => {
+          addParams(request, params);
+          return routeConfig(request);
+        };
+      };
+    } else {
+      // Method-specific handlers
+      routes[pathname] = (params) => {
+        return (request: Request) => {
+          addParams(request, params);
+
+          const handler = routeConfig[request.method as Method];
+          if (handler) {
+            return handler(request);
+          } else {
+            // Method not allowed
+            return wrongMethod(request);
+          }
         };
       };
     }
-
-    return this.#matcher = createRouter(routes);
   }
 
-  /**
-   * Handles an incoming HTTP request and returns a Response
-   *
-   * Extracts the pathname from the request URL, finds a matching route handler,
-   * and executes it. If no route matches, the notFound handler is used.
-   */
-  fetch = async (request: Request): Promise<Response> => {
-    const { pathname } = new URL(request.url);
-    const match = this.#getMatcher();
-    const handler = match(pathname) ?? this.#notFound;
-    return await handler(request);
+  const matcher = createRouter(routes);
+
+  return {
+    fetch: async (request: Request): Promise<Response> => {
+      const { pathname } = new URL(request.url);
+      const handler = matcher(pathname);
+
+      if (handler === null) {
+        return await notFound(request);
+      }
+
+      return await handler(request);
+    },
   };
-
-  #route(method: string, pathname: string, handler: HandlerP): void {
-    if (pathname[0] !== "/") pathname = "/" + pathname;
-    this.#routes[pathname] ??= {};
-    this.#routes[pathname][method] = handler;
-    this.#matcher = null;
-  }
-
-  /** Registers a handler for GET requests at the specified path */
-  get(pathname: string, handler: HandlerP): void {
-    this.#route("GET", pathname, handler);
-  }
-
-  /** Registers a handler for POST requests at the specified path */
-  post(pathname: string, handler: HandlerP): void {
-    this.#route("POST", pathname, handler);
-  }
-
-  /** Registers a handler for PUT requests at the specified path */
-  put(pathname: string, handler: HandlerP): void {
-    this.#route("PUT", pathname, handler);
-  }
-
-  /** Registers a handler for DELETE requests at the specified path */
-  delete(pathname: string, handler: HandlerP): void {
-    this.#route("DELETE", pathname, handler);
-  }
-
-  /** Registers a handler for PATCH requests at the specified path */
-  patch(pathname: string, handler: HandlerP): void {
-    this.#route("PATCH", pathname, handler);
-  }
-
-  /** Registers a handler for OPTIONS requests at the specified path */
-  options(pathname: string, handler: HandlerP): void {
-    this.#route("OPTIONS", pathname, handler);
-  }
-
-  /** Registers a handler for HEAD requests at the specified path */
-  head(pathname: string, handler: HandlerP): void {
-    this.#route("HEAD", pathname, handler);
-  }
 }

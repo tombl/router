@@ -1,12 +1,16 @@
 import { assertEquals } from "jsr:@std/assert";
-import { Router } from "./http.ts";
+import { createHttpRouter } from "./http.ts";
 
 Deno.test("HTTP router handles basic routes with different methods", async () => {
-  const router = new Router();
-
-  router.get("hello", (_req) => new Response("GET hello"));
-  router.post("hello", (_req) => new Response("POST hello"));
-  router.put("hello", (_req) => new Response("PUT hello"));
+  const router = createHttpRouter({
+    routes: {
+      "/hello": {
+        GET: (_req) => new Response("GET hello"),
+        POST: (_req) => new Response("POST hello"),
+        PUT: (_req) => new Response("PUT hello"),
+      },
+    },
+  });
 
   // Test GET request
   const getReq = new Request("https://example.com/hello", { method: "GET" });
@@ -25,15 +29,16 @@ Deno.test("HTTP router handles basic routes with different methods", async () =>
 });
 
 Deno.test("HTTP router handles parameters in routes", async () => {
-  const router = new Router();
-
-  router.get("user/:id", (req) => {
-    return new Response(`User ID: ${req.params.id}`);
-  });
-
-  router.get("post/:year/:month/:slug", (req) => {
-    const { year, month, slug } = req.params;
-    return new Response(`Post: ${slug} from ${month}/${year}`);
+  const router = createHttpRouter({
+    routes: {
+      "/user/:id": (req) => {
+        return new Response(`User ID: ${req.params.id}`);
+      },
+      "/post/:year/:month/:slug": (req) => {
+        const { year, month, slug } = req.params;
+        return new Response(`Post: ${slug} from ${month}/${year}`);
+      },
+    },
   });
 
   // Test simple parameter
@@ -52,9 +57,11 @@ Deno.test("HTTP router handles parameters in routes", async () => {
 });
 
 Deno.test("HTTP router handles 404 not found", async () => {
-  const router = new Router();
-
-  router.get("home", () => new Response("Home"));
+  const router = createHttpRouter({
+    routes: {
+      "/home": () => new Response("Home"),
+    },
+  });
 
   const req = new Request("https://example.com/unknown", { method: "GET" });
   const res = await router.fetch(req);
@@ -63,10 +70,14 @@ Deno.test("HTTP router handles 404 not found", async () => {
 });
 
 Deno.test("HTTP router handles 405 method not allowed", async () => {
-  const router = new Router();
-
-  router.get("api", () => new Response("GET API"));
-  // Only define GET, not POST
+  const router = createHttpRouter({
+    routes: {
+      "/api": {
+        GET: () => new Response("GET API"),
+        // Only define GET, not POST
+      },
+    },
+  });
 
   const req = new Request("https://example.com/api", { method: "POST" });
   const res = await router.fetch(req);
@@ -75,11 +86,12 @@ Deno.test("HTTP router handles 405 method not allowed", async () => {
 });
 
 Deno.test("HTTP router with custom not found handler", async () => {
-  const router = new Router({
+  const router = createHttpRouter({
+    routes: {
+      "/home": () => new Response("Home"),
+    },
     notFound: () => new Response("Custom not found page", { status: 404 }),
   });
-
-  router.get("home", () => new Response("Home"));
 
   const req = new Request("https://example.com/unknown", { method: "GET" });
   const res = await router.fetch(req);
@@ -88,13 +100,39 @@ Deno.test("HTTP router with custom not found handler", async () => {
   assertEquals(await res.text(), "Custom not found page");
 });
 
-Deno.test("HTTP router allows async handlers", async () => {
-  const router = new Router();
+Deno.test("HTTP router with custom wrong method handler", async () => {
+  const router = createHttpRouter({
+    routes: {
+      "/api": {
+        GET: () => new Response("GET API"),
+        // Only define GET, not POST
+      },
+    },
+    wrongMethod: (req) =>
+      new Response(
+        `Custom wrong method: ${req.method}`,
+        { status: 405 },
+      ),
+  });
 
-  router.get("async", async (_req) => {
-    // Simulate async operation
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    return new Response("Async response");
+  const req = new Request("https://example.com/api", { method: "POST" });
+  const res = await router.fetch(req);
+
+  assertEquals(res.status, 405);
+  assertEquals(await res.text(), "Custom wrong method: POST");
+});
+
+Deno.test("HTTP router allows async handlers", async () => {
+  const router = createHttpRouter({
+    routes: {
+      "/async": {
+        GET: async (_req) => {
+          // Simulate async operation
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          return new Response("Async response");
+        },
+      },
+    },
   });
 
   const req = new Request("https://example.com/async", { method: "GET" });
@@ -104,10 +142,12 @@ Deno.test("HTTP router allows async handlers", async () => {
 });
 
 Deno.test("HTTP router allows splat routes", async () => {
-  const router = new Router();
-
-  router.get("files/*", (req) => {
-    return new Response(`File: ${req.params["*"]}`);
+  const router = createHttpRouter({
+    routes: {
+      "/files/*": (req) => {
+        return new Response(`File: ${req.params["*"]}`);
+      },
+    },
   });
 
   const req = new Request("https://example.com/files/documents/report.pdf", {
@@ -118,21 +158,65 @@ Deno.test("HTTP router allows splat routes", async () => {
   assertEquals(await res.text(), "File: documents/report.pdf");
 });
 
-Deno.test("HTTP router invalidates routes when adding new ones", async () => {
-  const router = new Router();
+Deno.test("HTTP router supports static Response objects for GET requests", async () => {
+  const staticResponse = new Response("Static content");
 
-  router.get("test", () => new Response("Original"));
+  const router = createHttpRouter({
+    routes: {
+      "/static": staticResponse,
+    },
+  });
 
-  // First request should use original handler
-  const req1 = new Request("https://example.com/test", { method: "GET" });
+  // First request should get a clone of the response
+  const req1 = new Request("https://example.com/static", { method: "GET" });
   const res1 = await router.fetch(req1);
-  assertEquals(await res1.text(), "Original");
+  assertEquals(await res1.text(), "Static content");
 
-  // Add a new route which should invalidate the router
-  router.get("test", () => new Response("Updated"));
-
-  // Second request should use updated handler
-  const req2 = new Request("https://example.com/test", { method: "GET" });
+  // Second request should also work (proving it was cloned)
+  const req2 = new Request("https://example.com/static", { method: "GET" });
   const res2 = await router.fetch(req2);
-  assertEquals(await res2.text(), "Updated");
+  assertEquals(await res2.text(), "Static content");
+
+  // Non-GET requests to static responses should return 405 Method Not Allowed
+  const postReq = new Request("https://example.com/static", { method: "POST" });
+  const postRes = await router.fetch(postReq);
+  assertEquals(postRes.status, 405);
+});
+
+Deno.test("HTTP router handles mixed route styles", async () => {
+  const router = createHttpRouter({
+    routes: {
+      "/function": (_req) => new Response("Function handler"),
+      "/methods": {
+        GET: () => new Response("GET handler"),
+        POST: () => new Response("POST handler"),
+      },
+      "/static": new Response("Static response"),
+    },
+  });
+
+  // Test function handler
+  const funcReq = new Request("https://example.com/function", {
+    method: "GET",
+  });
+  const funcRes = await router.fetch(funcReq);
+  assertEquals(await funcRes.text(), "Function handler");
+
+  // Test method handlers
+  const getReq = new Request("https://example.com/methods", { method: "GET" });
+  const getRes = await router.fetch(getReq);
+  assertEquals(await getRes.text(), "GET handler");
+
+  const postReq = new Request("https://example.com/methods", {
+    method: "POST",
+  });
+  const postRes = await router.fetch(postReq);
+  assertEquals(await postRes.text(), "POST handler");
+
+  // Test static response
+  const staticReq = new Request("https://example.com/static", {
+    method: "GET",
+  });
+  const staticRes = await router.fetch(staticReq);
+  assertEquals(await staticRes.text(), "Static response");
 });
