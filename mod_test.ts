@@ -56,7 +56,7 @@ Deno.test("router handles mixed static and parameterized routes", () => {
 });
 
 Deno.test("router returns non-string values", () => {
-  const router = createMatcher<number>({
+  const router = createMatcher({
     "count/:num": ({ num }) => parseInt(num, 10),
     "fixed": () => 42,
   });

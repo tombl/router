@@ -11,14 +11,18 @@ import { createMatcher, type Params } from "./mod.ts";
 /**
  * A route handler function for the web router
  */
-type RouteHandler = (params: Params) => void;
+type RouteHandler<T extends string> = (params: Params<T>) => void;
 
+interface RouterConfig {
+  routes: Record<string, RouteHandler<string>>;
+  notFound?: (pathname: string) => void;
+}
 /**
  * Router configuration interface
  */
-interface RouterConfig {
-  routes: { [pathname: string]: RouteHandler };
-  notFound?: (pathname: string) => void;
+interface RouterConfigP<R extends { [P in keyof R & string]: RouteHandler<P> }>
+  extends RouterConfig {
+  routes: R;
 }
 
 /**
@@ -91,18 +95,29 @@ export interface WebRouter {
  * });
  * ```
  */
+export function createWebRouter<
+  R extends { [P in keyof R & string]: RouteHandler<P> },
+>(config: RouterConfigP<R>): WebRouter;
+
+export function createWebRouter(config: RouterConfig): WebRouter;
+
 export function createWebRouter(config: RouterConfig): WebRouter {
   // Create a route mapping with handlers wrapped to pass params
-  const routes: Record<string, (params: Params) => () => void> = {};
-  
+  const routes: Record<string, (params: Record<string, string>) => () => void> =
+    {};
+
   // Transform route handlers
-  for (const [pathname, routeHandler] of Object.entries(config.routes)) {
+  for (
+    const [pathname, routeHandler] of Object.entries(
+      config.routes,
+    )
+  ) {
     routes[pathname] = (params) => {
       return () => routeHandler(params);
     };
   }
-  
-  const matcher = createMatcher(routes);
+
+  const matcher = createMatcher<() => void>(routes);
   const notFound = config.notFound;
 
   function handle(pathname: string) {

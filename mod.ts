@@ -16,14 +16,32 @@ const NAMED_SEGMENT = /^:([a-z][a-z0-9]*)$/i;
 export type Matcher<T> = (pathname: string) => T | null;
 
 /**
- * Parameters extracted from the path
+ * Extract parameter names from a route pattern
+ *
+ * @example
+ * type UserParams = Params<"/users/:id/posts/:postId">; // { id: string; postId: string }
  */
-export type Params = Record<string, string>;
+export type Params<P extends string> = P extends
+  `${string}/:${infer Param}/${infer Rest}`
+  ? { [K in Param]: string } & Params<`/${Rest}`>
+  : P extends `${string}/:${infer Param}` ? { [K in Param]: string }
+  : P extends `${string}/*/${infer Rest}` ? { "*": string } & Params<`/${Rest}`>
+  : P extends `${string}/*` ? { "*": string }
+  // deno-lint-ignore ban-types
+  : {};
+
+type RouteHandler<P extends string, T> = (params: Params<P>) => T;
 
 /**
  * Routes mapping type that associates route patterns with handler functions
+ *
+ * This type maps each route pattern to a handler function that receives
+ * typed parameters extracted from that specific route pattern.
  */
-export type Routes<T> = Record<string, (params: Params) => T>;
+export type Routes<
+  T,
+  R extends { [P in keyof R & string]: RouteHandler<P, T> },
+> = R;
 
 /**
  * Creates a router function that matches paths against defined routes with parameters
@@ -45,7 +63,18 @@ export type Routes<T> = Record<string, (params: Params) => T>;
  * router("/files/path/to/file.txt"); // "File path/to/file.txt"
  * ```
  */
-export function createMatcher<T>(routes: Routes<T>): Matcher<T> {
+export function createMatcher<
+  T,
+  Route extends { [Path in keyof Route & string]: RouteHandler<Path, T> },
+>(routes: Routes<T, Route>): Matcher<T>;
+
+export function createMatcher<T>(
+  routes: Record<string, (params: Record<string, string>) => T>,
+): Matcher<T>;
+
+export function createMatcher<T>(
+  routes: Record<string, (params: Record<string, string>) => T>,
+): Matcher<T> {
   const entries = Object.entries(routes);
 
   if (entries.length === 0) return () => null;

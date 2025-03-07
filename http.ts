@@ -3,17 +3,17 @@
  * @module
  */
 
-import { createMatcher, type Params, type Routes } from "./mod.ts";
+import { createMatcher, type Params } from "./mod.ts";
 
 /**
  * Like a Request, but with parameters.
  */
-interface RequestP extends Request {
+interface RequestP<P extends string> extends Request {
   /**
    * The parameters extracted from the path.
    * `/:name` will be available as `request.params.name`.
    */
-  params: Params;
+  params: Params<P>;
 }
 
 type Handler = (request: Request) => Response | Promise<Response>;
@@ -21,7 +21,9 @@ type Handler = (request: Request) => Response | Promise<Response>;
 /**
  * A request handler that supports parameters.
  */
-type HandlerP = (request: RequestP) => Response | Promise<Response>;
+type HandlerP<P extends string> = (
+  request: RequestP<P>,
+) => Response | Promise<Response>;
 
 export type { HandlerP as Handler, RequestP as RequestWithParams };
 
@@ -45,8 +47,8 @@ export type Method =
 /**
  * Route configuration type for method-specific handlers
  */
-type RouteMethodHandlers = {
-  [K in Method]?: HandlerP;
+type RouteMethodHandlers<P extends string> = {
+  [K in Method]?: HandlerP<P>;
 };
 
 /**
@@ -55,15 +57,22 @@ type RouteMethodHandlers = {
  * - Method-specific handlers
  * - A static Response (which will only be returned for GET requests, other methods will get 405)
  */
-type RouteConfig = HandlerP | RouteMethodHandlers | Response;
+type RouteConfig<P extends string> =
+  | HandlerP<P>
+  | RouteMethodHandlers<P>
+  | Response;
 
+interface RouterConfig {
+  routes: Record<string, RouteConfig<string>>;
+  notFound?: Handler;
+  wrongMethod?: Handler;
+}
 /**
  * Router configuration interface
  */
-interface RouterConfig {
-  routes: { [pathname: string]: RouteConfig };
-  notFound?: Handler;
-  wrongMethod?: Handler;
+interface RouterConfigP<R extends { [P in keyof R & string]: RouteConfig<P> }>
+  extends RouterConfig {
+  routes: R;
 }
 
 /**
@@ -114,10 +123,10 @@ export interface HttpRouter {
 /**
  * Add parameters to a Request object, marking it as a RequestP
  */
-function addParams(
+function addParams<P extends string>(
   request: Request,
-  params: Params,
-): asserts request is RequestP {
+  params: Params<P>,
+): asserts request is RequestP<P> {
   Object.defineProperty(request, "params", {
     value: params,
     writable: true,
@@ -126,13 +135,22 @@ function addParams(
   });
 }
 
+export function createHttpRouter<
+  Route extends { [Path in keyof Route & string]: RouteConfig<Path> },
+>(config: RouterConfigP<Route>): HttpRouter;
+
+export function createHttpRouter(config: RouterConfig): HttpRouter;
+
 export function createHttpRouter(config: RouterConfig): HttpRouter {
   const notFound = config.notFound ?? defaultNotFound;
   const wrongMethod = config.wrongMethod ?? defaultWrongMethod;
 
-  const routes: Routes<Handler> = {};
+  const routes: Record<string, (params: Record<string, string>) => Handler> =
+    {};
 
-  for (const [pathname, routeConfig] of Object.entries(config.routes)) {
+  for (
+    const [pathname, routeConfig] of Object.entries(config.routes)
+  ) {
     // Create a specific handler based on routeConfig type
     if (routeConfig instanceof Response) {
       // Static response handler - only works for GET requests
@@ -174,7 +192,7 @@ export function createHttpRouter(config: RouterConfig): HttpRouter {
     }
   }
 
-  const matcher = createMatcher(routes);
+  const matcher = createMatcher<Handler>(routes);
 
   return {
     fetch: async (request: Request): Promise<Response> => {

@@ -11,7 +11,7 @@ const smallRouter = createMatcher({
 // Larger number of static routes
 const largeRoutesObj: Record<
   string,
-  (params: Params) => string
+  () => string
 > = {};
 for (let i = 0; i < 100; i++) {
   largeRoutesObj[`route${i}`] = () => `Route ${i}`;
@@ -156,7 +156,7 @@ Deno.bench("Real-world scenario", () => {
 
 // Benchmark router creation with different numbers of routes
 Deno.bench("Router creation (10 routes)", () => {
-  const routes: Record<string, (params: Params) => string> = {};
+  const routes: Record<string, () => string> = {};
 
   for (let i = 0; i < 10; i++) {
     routes[`route${i}`] = () => `Route ${i}`;
@@ -166,7 +166,7 @@ Deno.bench("Router creation (10 routes)", () => {
 });
 
 Deno.bench("Router creation (100 routes)", () => {
-  const routes: Record<string, (params: Params) => string> = {};
+  const routes: Record<string, () => string> = {};
 
   for (let i = 0; i < 100; i++) {
     routes[`route${i}`] = () => `Route ${i}`;
