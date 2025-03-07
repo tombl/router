@@ -21,20 +21,28 @@ export function createRouter<T>(
     entries
       .map(([route]) => {
         mapping[i++] = j++;
-        return route
+
+        const pattern = route
           .split("/")
           .map((segment) => {
-            const match = NAMED_SEGMENT.exec(segment);
-            if (match === null) {
-              return escape(segment);
-            } else {
+            if (segment === "*") {
               i++;
-              return `(?<${match[1]}>[^/]+?)`;
+              return `(?<_splat>.*)`;
             }
+
+            const match = NAMED_SEGMENT.exec(segment);
+            if (match) {
+              const [, name] = match;
+              i++;
+              return `(?<${name}>[^/]+?)`;
+            }
+
+            return escape(segment);
           })
           .join("/");
+
+        return `^(${pattern})$`;
       })
-      .map((route) => `^(${route})$`)
       .join("|"),
   );
 
@@ -45,6 +53,12 @@ export function createRouter<T>(
     const idx = mapping[match.findIndex((m, i) => i && m !== undefined) - 1];
     const fn = entries[idx][1];
 
-    return fn(match.groups!);
+    const groups = match.groups ?? {};
+    if ("_splat" in groups) {
+      groups["*"] = groups._splat;
+      delete groups._splat;
+    }
+
+    return fn(groups);
   };
 }
