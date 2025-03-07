@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "dev": "vite"
+  },
+  "imports": {
+    "@deno/vite-plugin": "npm:@deno/vite-plugin@^1.0.4",
+    "vite": "npm:vite@^6.2.1"
+  }
+}
