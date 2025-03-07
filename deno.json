@@ -1,0 +1,6 @@
+{
+  "tasks": {
+    "test": "deno test",
+    "bench": "deno bench bench.ts"
+  }
+}
