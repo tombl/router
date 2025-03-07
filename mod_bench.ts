@@ -1,8 +1,8 @@
-import { createRouter } from "./mod.ts";
+import { createMatcher } from "./mod.ts";
 
 // Create routers outside of the benchmark functions
 // Simple static routes router
-const smallRouter = createRouter({
+const smallRouter = createMatcher({
   "home": () => "Home page",
   "about": () => "About page",
   "contact": () => "Contact page",
@@ -11,15 +11,15 @@ const smallRouter = createRouter({
 // Larger number of static routes
 const largeRoutesObj: Record<
   string,
-  (params: Record<string, string>) => string
+  (params: Params) => string
 > = {};
 for (let i = 0; i < 100; i++) {
   largeRoutesObj[`route${i}`] = () => `Route ${i}`;
 }
-const largeRouter = createRouter(largeRoutesObj);
+const largeRouter = createMatcher(largeRoutesObj);
 
 // Router with parameters
-const paramRouter = createRouter({
+const paramRouter = createMatcher({
   "user/:id": ({ id }) => `User ${id}`,
   "post/:slug": ({ slug }) => `Post: ${slug}`,
   "category/:name/page/:num": ({ name, num }) =>
@@ -27,7 +27,7 @@ const paramRouter = createRouter({
 });
 
 // Mixed routes with parameters and static segments
-const mixedRouter = createRouter({
+const mixedRouter = createMatcher({
   "": () => "Home page",
   "about": () => "About page",
   "users": () => "Users list",
@@ -37,14 +37,14 @@ const mixedRouter = createRouter({
 });
 
 // Router with splats
-const splatRouter = createRouter({
+const splatRouter = createMatcher({
   "files/*": ({ "*": path }) => `Downloading ${path}`,
   "assets/*/download": ({ "*": file }) => `Asset: ${file}`,
   "blog/:year/*": ({ year, "*": slug }) => `Blog post from ${year}: ${slug}`,
 });
 
 // Real-world scenario with many routes of different types
-const realWorldRouter = createRouter({
+const realWorldRouter = createMatcher({
   "": () => "Home",
   "about": () => "About",
   "contact": () => "Contact",
@@ -67,7 +67,7 @@ const realWorldRouter = createRouter({
 });
 
 // Simple comparison router
-const comparisonRouter = createRouter({
+const comparisonRouter = createMatcher({
   "home": () => "Home page",
   "about": () => "About page",
   "contact": () => "Contact page",
@@ -156,23 +156,23 @@ Deno.bench("Real-world scenario", () => {
 
 // Benchmark router creation with different numbers of routes
 Deno.bench("Router creation (10 routes)", () => {
-  const routes: Record<string, (params: Record<string, string>) => string> = {};
+  const routes: Record<string, (params: Params) => string> = {};
 
   for (let i = 0; i < 10; i++) {
     routes[`route${i}`] = () => `Route ${i}`;
   }
 
-  createRouter(routes);
+  createMatcher(routes);
 });
 
 Deno.bench("Router creation (100 routes)", () => {
-  const routes: Record<string, (params: Record<string, string>) => string> = {};
+  const routes: Record<string, (params: Params) => string> = {};
 
   for (let i = 0; i < 100; i++) {
     routes[`route${i}`] = () => `Route ${i}`;
   }
 
-  createRouter(routes);
+  createMatcher(routes);
 });
 
 // Compare with compiled static routes vs dynamic lookup

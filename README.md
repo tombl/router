@@ -27,9 +27,9 @@ The core router provides pattern matching functionality that can be used in any
 JavaScript environment.
 
 ```ts
-import { createRouter } from "@tombl/router";
+import { createMatcher } from "@tombl/router";
 
-const router = createRouter({
+const router = createMatcher({
   "/": () => "Home page",
   "/about": () => "About page",
   "/users/:id": ({ id }) => `User profile: ${id}`,

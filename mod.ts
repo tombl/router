@@ -10,15 +10,20 @@ import { escape } from "jsr:@std/regexp/escape";
 const NAMED_SEGMENT = /^:([a-z][a-z0-9]*)$/i;
 
 /**
- * The type returned by {@link createRouter}, representing a compiled match function
+ * The type returned by {@link createMatcher}, representing a compiled match function
  * for a set of routes.
  */
-export type Router<T> = (pathname: string) => T | null;
+export type Matcher<T> = (pathname: string) => T | null;
+
+/**
+ * Parameters extracted from the path
+ */
+export type Params = Record<string, string>;
 
 /**
  * Routes mapping type that associates route patterns with handler functions
  */
-export type Routes<T> = Record<string, (params: Record<string, string>) => T>;
+export type Routes<T> = Record<string, (params: Params) => T>;
 
 /**
  * Creates a router function that matches paths against defined routes with parameters
@@ -30,7 +35,7 @@ export type Routes<T> = Record<string, (params: Record<string, string>) => T>;
  *
  * @example
  * ```ts
- * const router = createRouter({
+ * const router = createMatcher({
  *   "/": () => "Home",
  *   "/users/:id": (params) => `User ${params.id}`,
  *   "/files/*": (params) => `File ${params["*"]}`
@@ -40,7 +45,7 @@ export type Routes<T> = Record<string, (params: Record<string, string>) => T>;
  * router("/files/path/to/file.txt"); // "File path/to/file.txt"
  * ```
  */
-export function createRouter<T>(routes: Routes<T>): Router<T> {
+export function createMatcher<T>(routes: Routes<T>): Matcher<T> {
   const entries = Object.entries(routes);
 
   if (entries.length === 0) return () => null;

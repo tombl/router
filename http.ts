@@ -3,7 +3,7 @@
  * @module
  */
 
-import { createRouter, type Routes } from "./mod.ts";
+import { createMatcher, type Params, type Routes } from "./mod.ts";
 
 /**
  * Like a Request, but with parameters.
@@ -13,7 +13,7 @@ interface RequestP extends Request {
    * The parameters extracted from the path.
    * `/:name` will be available as `request.params.name`.
    */
-  params: Record<string, string>;
+  params: Params;
 }
 
 type Handler = (request: Request) => Response | Promise<Response>;
@@ -114,7 +114,10 @@ export interface HttpRouter {
 /**
  * Add parameters to a Request object, marking it as a RequestP
  */
-function addParams(request: Request, params: Record<string, string>): asserts request is RequestP {
+function addParams(
+  request: Request,
+  params: Params,
+): asserts request is RequestP {
   Object.defineProperty(request, "params", {
     value: params,
     writable: true,
@@ -171,7 +174,7 @@ export function createHttpRouter(config: RouterConfig): HttpRouter {
     }
   }
 
-  const matcher = createRouter(routes);
+  const matcher = createMatcher(routes);
 
   return {
     fetch: async (request: Request): Promise<Response> => {

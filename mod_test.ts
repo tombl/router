@@ -1,14 +1,14 @@
 import { assertEquals } from "jsr:@std/assert";
-import { createRouter } from "./mod.ts";
+import { createMatcher } from "./mod.ts";
 
 Deno.test("router handles empty routes object", () => {
-  const router = createRouter({});
+  const router = createMatcher({});
   assertEquals(router("any-path"), null);
   assertEquals(router(""), null);
 });
 
 Deno.test("router matches static routes", () => {
-  const router = createRouter({
+  const router = createMatcher({
     "home": () => "Home page",
     "about": () => "About page",
     "contact": () => "Contact page",
@@ -21,7 +21,7 @@ Deno.test("router matches static routes", () => {
 });
 
 Deno.test("router handles route parameters", () => {
-  const router = createRouter({
+  const router = createMatcher({
     "user/:id": ({ id }) => `User ${id}`,
     "post/:slug": ({ slug }) => `Post: ${slug}`,
     "category/:name/page/:num": ({ name, num }) =>
@@ -36,7 +36,7 @@ Deno.test("router handles route parameters", () => {
 });
 
 Deno.test("router handles mixed static and parameterized routes", () => {
-  const router = createRouter({
+  const router = createMatcher({
     "": () => "Home page",
     "about": () => "About page",
     "users": () => "Users list",
@@ -56,7 +56,7 @@ Deno.test("router handles mixed static and parameterized routes", () => {
 });
 
 Deno.test("router returns non-string values", () => {
-  const router = createRouter<number>({
+  const router = createMatcher<number>({
     "count/:num": ({ num }) => parseInt(num, 10),
     "fixed": () => 42,
   });
@@ -68,7 +68,7 @@ Deno.test("router returns non-string values", () => {
 });
 
 Deno.test("router handles special characters in path segments", () => {
-  const router = createRouter({
+  const router = createMatcher({
     "file/:filename": ({ filename }) => `File: ${filename}`,
     "tag/:tag": ({ tag }) => `Tag: ${tag}`,
   });
@@ -79,7 +79,7 @@ Deno.test("router handles special characters in path segments", () => {
 });
 
 Deno.test("router handles regex special characters in routes", () => {
-  const router = createRouter({
+  const router = createMatcher({
     "products/(.*)": () => "Regex pattern as literal",
     "search/[query]": () => "Square brackets as literal",
     "items/{id}": () => "Curly braces as literal",
@@ -101,7 +101,7 @@ Deno.test("router handles regex special characters in routes", () => {
 });
 
 Deno.test("router distinguishes leading slashes", () => {
-  const router = createRouter({
+  const router = createMatcher({
     "/home": () => "Home with slash",
     "about": () => "About without slash",
     "/users/:id": ({ id }) => `User ${id} with slash`,
@@ -125,7 +125,7 @@ Deno.test("router distinguishes leading slashes", () => {
 });
 
 Deno.test("router handles splat routes", () => {
-  const router = createRouter({
+  const router = createMatcher({
     "files/*": () => "All files",
     "docs/:category/*": ({ category }) => `All docs in ${category}`,
     "api/users/:id/posts/*": ({ id }) => `All posts for user ${id}`,
@@ -159,7 +159,7 @@ Deno.test("router handles splat routes", () => {
 });
 
 Deno.test("router captures splat values", () => {
-  const router = createRouter({
+  const router = createMatcher({
     "download/*": ({ "*": path }) => `Downloading ${path}`,
     "assets/*/download": ({ "*": file }) => `Asset: ${file}`,
     "blog/:year/*": ({ year, "*": slug }) => `Blog post from ${year}: ${slug}`,
@@ -197,12 +197,12 @@ Deno.test("router captures splat values", () => {
 Deno.test("router conflict resolution is based on route definition order", () => {
   // Case 1: Static vs Parameter - first defined wins
   {
-    const router1 = createRouter({
+    const router1 = createMatcher({
       "user/profile": () => "Static profile",
       "user/:action": ({ action }) => `Dynamic ${action}`,
     });
 
-    const router2 = createRouter({
+    const router2 = createMatcher({
       "user/:action": ({ action }) => `Dynamic ${action}`,
       "user/profile": () => "Static profile",
     });
@@ -222,12 +222,12 @@ Deno.test("router conflict resolution is based on route definition order", () =>
 
   // Case 2: Parameter vs Splat - first defined wins
   {
-    const router1 = createRouter({
+    const router1 = createMatcher({
       "files/:filename": ({ filename }) => `File ${filename}`,
       "files/*": ({ "*": path }) => `Any file: ${path}`,
     });
 
-    const router2 = createRouter({
+    const router2 = createMatcher({
       "files/*": ({ "*": path }) => `Any file: ${path}`,
       "files/:filename": ({ filename }) => `File ${filename}`,
     });
@@ -247,12 +247,12 @@ Deno.test("router conflict resolution is based on route definition order", () =>
 
   // Case 3: Static vs Splat - first defined wins
   {
-    const router1 = createRouter({
+    const router1 = createMatcher({
       "api/docs": () => "API documentation",
       "api/*": ({ "*": path }) => `API path: ${path}`,
     });
 
-    const router2 = createRouter({
+    const router2 = createMatcher({
       "api/*": ({ "*": path }) => `API path: ${path}`,
       "api/docs": () => "API documentation",
     });
@@ -271,7 +271,7 @@ Deno.test("router conflict resolution is based on route definition order", () =>
 
   // Case 4: Multiple matches with different specificity
   {
-    const router = createRouter({
+    const router = createMatcher({
       "blog/:year/:month/:day/:slug": ({ year, month, day, slug }) =>
         `Full blog: ${year}-${month}-${day} ${slug}`,
       "blog/:year/:month/:slug": ({ year, month, slug }) =>

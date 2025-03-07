@@ -6,12 +6,12 @@
 
 /// <reference lib="dom" />
 
-import { createRouter } from "./mod.ts";
+import { createMatcher, type Params } from "./mod.ts";
 
 /**
  * A route handler function for the web router
  */
-type RouteHandler = (params: Record<string, string>) => void;
+type RouteHandler = (params: Params) => void;
 
 /**
  * Router configuration interface
@@ -93,7 +93,7 @@ export interface WebRouter {
  */
 export function createWebRouter(config: RouterConfig): WebRouter {
   // Create a route mapping with handlers wrapped to pass params
-  const routes: Record<string, (params: Record<string, string>) => () => void> = {};
+  const routes: Record<string, (params: Params) => () => void> = {};
   
   // Transform route handlers
   for (const [pathname, routeHandler] of Object.entries(config.routes)) {
@@ -102,7 +102,7 @@ export function createWebRouter(config: RouterConfig): WebRouter {
     };
   }
   
-  const matcher = createRouter(routes);
+  const matcher = createMatcher(routes);
   const notFound = config.notFound;
 
   function handle(pathname: string) {
@@ -126,12 +126,16 @@ export function createWebRouter(config: RouterConfig): WebRouter {
     handle(pathname);
   }
 
-  const onPopState = (event: PopStateEvent) => {
+  function onPopState(event: PopStateEvent) {
+    if (matcher(location.pathname) === null && !notFound) {
+      return;
+    }
+
     event.preventDefault();
     handle(location.pathname);
-  };
+  }
 
-  const onClick = (event: MouseEvent) => {
+  function onClick(event: MouseEvent) {
     const link = (event.target as Element).closest("a");
 
     if (
@@ -164,7 +168,7 @@ export function createWebRouter(config: RouterConfig): WebRouter {
         }
       }
     }
-  };
+  }
 
   return {
     navigate: (pathname: string) => navigate(pathname, false),

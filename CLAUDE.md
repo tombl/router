@@ -20,7 +20,7 @@
 ## TypeScript Practices
 
 - Use explicit typing with TypeScript
-- Use generics for type safety (e.g., `createRouter<T>`)
+- Use generics for type safety (e.g., `createMatcher<T>`)
 - Return null for non-matching routes
 
 ## Testing
