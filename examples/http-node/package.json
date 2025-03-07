@@ -1,0 +1,6 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@mjackson/node-fetch-server": "^0.6.1"
+  }
+}

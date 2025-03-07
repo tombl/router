@@ -10,8 +10,8 @@ jobs:
       - run: deno lint
       - run: deno fmt --check
       - run: deno check ./*.ts
-      - run: deno test --allow-all --trace-leaks --coverage
-      - run: deno coverage
+      - run: deno test --parallel --coverage
+      - run: deno coverage --detailed
 
   publish:
     needs: lint
