@@ -7,6 +7,7 @@ const html = String.raw;
 
 const router = new Router({
   "/": () => {
+    document.title = "Home";
     document.body.innerHTML = html`
       <h1>Hello!</h1>
       <p>This is the index page.</p>
@@ -14,6 +15,7 @@ const router = new Router({
     `;
   },
   "/:name": ({ name }) => {
+    document.title = `Hello ${name}`;
     document.body.innerHTML = html`
       <h1>Hello ${name}!</h1>
       <p>This is a page with a parameter.</p>
@@ -22,6 +24,7 @@ const router = new Router({
   },
 }, {
   notFound: (pathname) => {
+    document.title = "Not found";
     document.body.innerHTML = html`
       <h1>Page not found</h1>
       <p><code>${pathname}</code> does not exist.</p>

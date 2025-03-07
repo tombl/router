@@ -55,8 +55,7 @@ const realWorldRouter = createRouter({
     `Review ${reviewId} for product ${id}`,
   "blog": () => "Blog index",
   "blog/:year/:month": ({ year, month }) => `Blog archive for ${year}-${month}`,
-  "blog/:year/:month/:day/:slug": ({ year, month, day, slug }) =>
-    `Blog post: ${slug}`,
+  "blog/:year/:month/:day/:slug": ({ slug }) => `Blog post: ${slug}`,
   "api/v1/users": () => "API users",
   "api/v1/users/:id": ({ id }) => `API user ${id}`,
   "api/v1/users/:id/posts": ({ id }) => `API posts for user ${id}`,

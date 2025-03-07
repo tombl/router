@@ -1,0 +1,26 @@
+on:
+  push:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+      - run: deno lint
+      - run: deno fmt --check
+      - run: deno check ./*.ts
+      - run: deno test --allow-all --trace-leaks --coverage
+      - run: deno coverage
+
+  publish:
+    needs: lint
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+      - run: deno publish

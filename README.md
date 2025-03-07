@@ -1,75 +1,114 @@
-# Path Router
+# @tombl/router
 
-A lightweight, fast path router for JavaScript/TypeScript that supports static
-routes, parameterized routes, and splat routes.
+A lightweight and flexible routing library for various JavaScript environments.
+
+[![JSR](https://jsr.io/badges/@tombl/router)](https://jsr.io/@tombl/router)
 
 ## Features
 
-- Zero dependencies (only uses Deno's `@std/regexp/escape`)
-- Support for route parameters (e.g. `/user/:id`)
-- Support for splat routes with wildcards (e.g. `files/*`)
-- Type-safe with TypeScript generics
-- Fast regex-based matching
-- First-defined-route-wins conflict resolution
+- **Lightweight**: Small footprint with no dependencies
+- **Reasonably fast**: Uses a compiled single RegExp
+- **Flexible**: Supports multiple router types for different use cases
+- **Modern**: Designed for Deno, Cloudflare Workers, and browser environments
 
-## Usage
+## Installation
+
+```bash
+# Deno
+deno add jsr:@tombl/router
+
+# npm
+npx jsr add @tombl/router
+```
+
+## Generic Router
+
+The core router provides pattern matching functionality that can be used in any
+JavaScript environment.
 
 ```ts
-import { createRouter } from "./mod.ts";
+import { createRouter } from "@tombl/router";
 
-// Create a router with some routes
 const router = createRouter({
-  // Static routes
-  "": () => "Home page",
-  "about": () => "About page",
-
-  // Routes with parameters
-  "user/:id": ({ id }) => `User profile: ${id}`,
-  "post/:year/:month/:slug": ({ year, month, slug }) =>
-    `Blog post from ${month}/${year}: ${slug}`,
-
-  // Splat routes (match anything after the prefix)
-  "files/*": () => "File browser",
-  "docs/:category/*": ({ category }) => `Documentation for ${category}`,
-
-  // Capturing splat parts
-  "download/*": ({ "*": path }) => `Downloading ${path}`,
+  "/": () => "Home page",
+  "/about": () => "About page",
+  "/users/:id": ({ id }) => `User profile: ${id}`,
+  "/files/*": ({ "*": path }) => `File: ${path}`,
 });
 
-// Match a path
-router("about"); // Returns: "About page"
-router("user/123"); // Returns: "User profile: 123"
-router("post/2023/06/hello-world"); // Returns: "Blog post from 06/2023: hello-world"
-router("unknown-path"); // Returns: null
+router("/"); // "Home page"
+router("/about"); // "About page"
+router("/users/123"); // "User profile: 123"
+router("/files/docs/readme"); // "File: docs/readme"
+router("/unknown"); // null (no match)
+```
 
-// Splat routes match any number of path segments
-router("files/document.pdf"); // Returns: "File browser"
-router("files/images/photo.jpg"); // Returns: "File browser"
-router("docs/javascript/functions/callbacks"); // Returns: "Documentation for javascript"
+The router supports three types of route segments:
 
-// Capturing the splat part
-router("download/report.pdf"); // Returns: "Downloading report.pdf"
-router("download/images/photo.jpg"); // Returns: "Downloading images/photo.jpg"
+- **Static segments**: Exact string matches (e.g., `/about`)
+- **Named parameters**: Segments starting with `:` (e.g., `/:id`)
+- **Splat parameter**: A `*` segment that captures the rest of the path
 
-// Router can return any type, not just strings
-const apiRouter = createRouter<Response>({
-  "api/users": () =>
-    new Response(JSON.stringify({ users: ["Alice", "Bob"] }), {
-      headers: { "Content-Type": "application/json" },
-    }),
-  "api/user/:id": ({ id }) =>
-    new Response(JSON.stringify({ id, name: `User ${id}` }), {
-      headers: { "Content-Type": "application/json" },
-    }),
-  "api/files/*": ({ "*": path }) =>
-    new Response(JSON.stringify({ path, type: "file" }), {
-      headers: { "Content-Type": "application/json" },
-    }),
+## HTTP Router
+
+For server-side applications using the standard Request/Response API (Deno,
+Cloudflare Workers, etc.)
+
+```ts
+import { Router } from "@tombl/router/http";
+
+const router = new Router();
+
+router.get("/", (req) => {
+  return new Response("Home page");
 });
 
-apiRouter("api/users"); // Returns a Response object with users list
-apiRouter("api/user/42"); // Returns a Response object with user data
-apiRouter("api/files/documents/report.pdf"); // Returns a Response with file path info
+router.get("/users/:id", (req) => {
+  return new Response(`User profile: ${req.params.id}`);
+});
+
+router.post("/api/items", async (req) => {
+  const data = await req.json();
+  // Process data...
+  return new Response("Item created", { status: 201 });
+});
+
+// Handle requests with Deno
+Deno.serve(router.fetch);
+
+// Or export for use with Cloudflare Workers / `deno serve`
+export default router;
+```
+
+## Web Router
+
+For client-side single-page applications in the browser:
+
+```ts
+import { Router } from "@tombl/router/web";
+
+const router = new Router({
+  "/": () => {
+    document.body.innerHTML = "<h1>Home Page</h1>";
+  },
+  "/about": () => {
+    document.body.innerHTML = "<h1>About Page</h1>";
+  },
+  "/users/:id": ({ id }) => {
+    document.body.innerHTML = `<h1>User ${id}</h1>`;
+  },
+}, {
+  notFound: (pathname) => {
+    document.body.innerHTML = "<h1>404 - Page not found</h1>";
+  },
+});
+
+// Programmatic navigation (don't do this, use links instead)
+document.querySelector("button#nav-home").addEventListener("click", () => {
+  router.navigate("/");
+});
+
+// The router automatically handles link clicks for same-origin links
 ```
 
 ## License
