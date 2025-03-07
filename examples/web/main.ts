@@ -1,28 +1,29 @@
 /// <reference lib="dom" />
 
-import { Router } from "../../web.ts";
+import { createWebRouter } from "../../web.ts";
 
 // syntax highlighting
 const html = String.raw;
 
-const router = new Router({
-  "/": () => {
-    document.title = "Home";
-    document.body.innerHTML = html`
-      <h1>Hello!</h1>
-      <p>This is the index page.</p>
-      <a href="/joe">Greet joe</a>
-    `;
+const router = createWebRouter({
+  routes: {
+    "/": () => {
+      document.title = "Home";
+      document.body.innerHTML = html`
+        <h1>Hello!</h1>
+        <p>This is the index page.</p>
+        <a href="/joe">Greet joe</a>
+      `;
+    },
+    "/:name": ({ name }) => {
+      document.title = `Hello ${name}`;
+      document.body.innerHTML = html`
+        <h1>Hello ${name}!</h1>
+        <p>This is a page with a parameter.</p>
+        <a href="/">Go back</a>
+      `;
+    },
   },
-  "/:name": ({ name }) => {
-    document.title = `Hello ${name}`;
-    document.body.innerHTML = html`
-      <h1>Hello ${name}!</h1>
-      <p>This is a page with a parameter.</p>
-      <a href="/">Go back</a>
-    `;
-  },
-}, {
   notFound: (pathname) => {
     document.title = "Not found";
     document.body.innerHTML = html`
@@ -32,6 +33,9 @@ const router = new Router({
     `;
   },
 });
+
+// Start the router
+router.start();
 
 // deno-lint-ignore no-explicit-any -- i don't want to declare global
 (globalThis as any).router = router;

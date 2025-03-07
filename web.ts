@@ -6,10 +6,60 @@
 
 /// <reference lib="dom" />
 
-import { createRouter, type Router as Matcher, type Routes } from "./mod.ts";
+import { createRouter } from "./mod.ts";
 
 /**
- * Web Router class for client-side navigation in browser applications
+ * A route handler function for the web router
+ */
+type RouteHandler = (params: Record<string, string>) => void;
+
+/**
+ * Router configuration interface
+ */
+interface RouterConfig {
+  routes: { [pathname: string]: RouteHandler };
+  notFound?: (pathname: string) => void;
+}
+
+/**
+ * Web Router interface for client-side navigation
+ */
+export interface WebRouter {
+  /**
+   * Navigates to a new path by pushing a new entry to the browser history
+   *
+   * This is the standard way to navigate to a new page in your application.
+   * It adds a new entry to the browser history stack.
+   */
+  navigate(pathname: string): void;
+
+  /**
+   * Redirects to a new path by replacing the current history entry
+   *
+   * Use this when you want to navigate without adding to the browser's
+   * history stack, such as for redirects or when replacing an invalid URL.
+   */
+  redirect(pathname: string): void;
+
+  /**
+   * Starts the router by attaching event listeners for navigation events
+   *
+   * Call this method to activate the router and handle navigation events.
+   * The router is not automatically started when created.
+   */
+  start(): void;
+
+  /**
+   * Stops the router by removing event listeners
+   *
+   * Call this method when you want to clean up resources or when
+   * the router should no longer handle navigation.
+   */
+  stop(): void;
+}
+
+/**
+ * Creates a web router for client-side navigation in browser applications
  *
  * Features:
  * - Client-side navigation without page reloads
@@ -18,14 +68,22 @@ import { createRouter, type Router as Matcher, type Routes } from "./mod.ts";
  *
  * @example
  * ```ts
- * const router = new Router({
- *   "/": () => {
- *     document.body.innerHTML = "Home";
+ * const router = createWebRouter({
+ *   routes: {
+ *     "/": () => {
+ *       document.body.innerHTML = "Home";
+ *     },
+ *     "/greet/:name": ({ name }) => {
+ *       document.body.innerHTML = `Hello ${name}!`;
+ *     }
  *   },
- *   "/greet/:name": ({ name }) => {
- *     document.body.innerHTML = `Hello ${name}!`;
+ *   notFound: (pathname) => {
+ *     document.body.innerHTML = `Page ${pathname} not found`;
  *   }
  * });
+ *
+ * // Start the router
+ * router.start();
  *
  * // Programmatic navigation
  * document.querySelector("button").addEventListener("click", () => {
@@ -33,52 +91,47 @@ import { createRouter, type Router as Matcher, type Routes } from "./mod.ts";
  * });
  * ```
  */
-export class Router {
-  #match: Matcher<void>;
-  #notFound?: (pathname: string) => void;
-  constructor(
-    routes: Routes<void>,
-    options: { notFound?: (pathname: string) => void } = {},
-  ) {
-    this.#match = createRouter(routes);
-    this.#notFound = options.notFound;
+export function createWebRouter(config: RouterConfig): WebRouter {
+  // Create a route mapping with handlers wrapped to pass params
+  const routes: Record<string, (params: Record<string, string>) => () => void> = {};
+  
+  // Transform route handlers
+  for (const [pathname, routeHandler] of Object.entries(config.routes)) {
+    routes[pathname] = (params) => {
+      return () => routeHandler(params);
+    };
+  }
+  
+  const matcher = createRouter(routes);
+  const notFound = config.notFound;
 
-    this.attach();
-    this.#handle(location.pathname);
+  function handle(pathname: string) {
+    const handler = matcher(pathname);
+
+    if (handler === null) {
+      notFound?.(pathname);
+    } else {
+      handler();
+    }
   }
 
-  /**
-   * Attaches event listeners for navigation events
-   *
-   * This method is automatically called by the constructor but can be
-   * called again if the router was previously detached.
-   * 
-   * To disable the router, call {@link detach}.
-   */
-  attach() {
-    addEventListener("popstate", this.#onPopState);
-    document.body.addEventListener("click", this.#onClick);
+  function navigate(pathname: string, isRedirect: boolean) {
+    const url = new URL(location.href);
+    url.pathname = pathname;
+    if (isRedirect) {
+      history.replaceState(null, "", url);
+    } else {
+      history.pushState(null, "", url);
+    }
+    handle(pathname);
   }
 
-  /**
-   * Detaches event listeners, effectively disabling the router
-   *
-   * Call this method when you want to clean up resources or when
-   * the router should no longer handle navigation.
-   * 
-   * To re-enable the router, call {@link attach}.
-   */
-  detach() {
-    removeEventListener("popstate", this.#onPopState);
-    document.body.removeEventListener("click", this.#onClick);
-  }
-
-  #onPopState = (event: PopStateEvent) => {
+  const onPopState = (event: PopStateEvent) => {
     event.preventDefault();
-    this.#handle(location.pathname);
+    handle(location.pathname);
   };
 
-  #onClick = (event: MouseEvent) => {
+  const onClick = (event: MouseEvent) => {
     const link = (event.target as Element).closest("a");
 
     if (
@@ -95,9 +148,15 @@ export class Router {
       !event.shiftKey && // Not open in new window
       !event.defaultPrevented // Click was not cancelled
     ) {
+      // Check if the router has a handler for this path or notFound is defined
+      // If not, let the browser handle the navigation
+      if (matcher(link.pathname) === null && !notFound) {
+        return;
+      }
+
       event.preventDefault();
       const hashChanged = location.hash !== link.hash;
-      this.navigate(link.pathname);
+      navigate(link.pathname, false);
       if (hashChanged) {
         location.hash = link.hash;
         if (link.hash === "" || link.hash === "#") {
@@ -107,38 +166,17 @@ export class Router {
     }
   };
 
-  #handle(pathname: string) {
-    if (this.#match(pathname) === null) this.#notFound?.(pathname);
-  }
-
-  #navigate(pathname: string, isRedirect: boolean) {
-    const url = new URL(location.href);
-    url.pathname = pathname;
-    if (isRedirect) {
-      history.replaceState(null, "", url);
-    } else {
-      history.pushState(null, "", url);
-    }
-    this.#handle(pathname);
-  }
-
-  /**
-   * Navigates to a new path by pushing a new entry to the browser history
-   *
-   * This is the standard way to navigate to a new page in your application.
-   * It adds a new entry to the browser history stack.
-   */
-  navigate(pathname: string) {
-    this.#navigate(pathname, false);
-  }
-
-  /**
-   * Redirects to a new path by replacing the current history entry
-   *
-   * Use this when you want to navigate without adding to the browser's
-   * history stack, such as for redirects or when replacing an invalid URL.
-   */
-  redirect(pathname: string) {
-    this.#navigate(pathname, true);
-  }
+  return {
+    navigate: (pathname: string) => navigate(pathname, false),
+    redirect: (pathname: string) => navigate(pathname, true),
+    start: () => {
+      addEventListener("popstate", onPopState);
+      document.body.addEventListener("click", onClick);
+      handle(location.pathname);
+    },
+    stop: () => {
+      removeEventListener("popstate", onPopState);
+      document.body.removeEventListener("click", onClick);
+    },
+  };
 }
