@@ -39,7 +39,7 @@ const mixedRouter = createMatcher({
 // Router with splats
 const splatRouter = createMatcher({
   "files/*": ({ "*": path }) => `Downloading ${path}`,
-  "assets/*/download": ({ "*": file }) => `Asset: ${file}`,
+  "assets/:type/download": ({ type }) => `Asset: ${type}`,
   "blog/:year/*": ({ year, "*": slug }) => `Blog post from ${year}: ${slug}`,
 });
 
@@ -121,7 +121,7 @@ Deno.bench("Mixed routes", () => {
 Deno.bench("Splat routes", () => {
   splatRouter("files/document.pdf");
   splatRouter("files/subdir/document.pdf");
-  splatRouter("assets/css/style.css/download");
+  splatRouter("assets/css/download");
   splatRouter("blog/2023/my-first-post");
   splatRouter("blog/2024/tech/javascript/advanced-tips");
 });

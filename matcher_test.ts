@@ -1,4 +1,4 @@
-import { assertEquals } from "jsr:@std/assert";
+import { assertEquals, assertThrows } from "jsr:@std/assert";
 import { createMatcher } from "./matcher.ts";
 
 Deno.test("router handles empty routes object", () => {
@@ -161,7 +161,6 @@ Deno.test("router handles splat routes", () => {
 Deno.test("router captures splat values", () => {
   const matcher = createMatcher({
     "download/*": ({ "*": path }) => `Downloading ${path}`,
-    "assets/*/download": ({ "*": file }) => `Asset: ${file}`,
     "blog/:year/*": ({ year, "*": slug }) => `Blog post from ${year}: ${slug}`,
   });
 
@@ -175,17 +174,6 @@ Deno.test("router captures splat values", () => {
     "Downloading images/photos/vacation/beach.jpg",
   );
 
-  // Another example of splat capture
-  assertEquals(matcher("assets/index.html"), null);
-  assertEquals(
-    matcher("assets/css/style.css/download"),
-    "Asset: css/style.css",
-  );
-  assertEquals(
-    matcher("assets/js/utils/helpers.js/download"),
-    "Asset: js/utils/helpers.js",
-  );
-
   // Combining named parameters with splat capture
   assertEquals(
     matcher("blog/2023/my-first-post"),
@@ -194,6 +182,30 @@ Deno.test("router captures splat values", () => {
   assertEquals(
     matcher("blog/2024/tech/javascript/advanced-tips"),
     "Blog post from 2024: tech/javascript/advanced-tips",
+  );
+});
+
+Deno.test("router throws on splats in non-trailing position", () => {
+  // Test splat followed by static segment
+  assertThrows(
+    () => {
+      createMatcher({
+        "files/*/suffix": () => "Should throw",
+      });
+    },
+    Error,
+    "The `*` catchall route parameter can only appear at the end of a route",
+  );
+
+  // Test splat followed by parameter
+  assertThrows(
+    () => {
+      createMatcher({
+        "files/*/:param": () => "Should throw",
+      });
+    },
+    Error,
+    "The `*` catchall route parameter can only appear at the end of a route",
   );
 });
 

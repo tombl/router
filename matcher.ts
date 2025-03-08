@@ -5,7 +5,10 @@
  * @module
  */
 
+import type { Params } from "./params.ts";
 import { escape } from "./regexp-escape.ts";
+
+export type { Params };
 
 const NAMED_SEGMENT = /^:([a-z][a-z0-9]*)$/i;
 
@@ -14,21 +17,6 @@ const NAMED_SEGMENT = /^:([a-z][a-z0-9]*)$/i;
  * for a set of routes.
  */
 export type Matcher<T> = (pathname: string) => T | null;
-
-/**
- * Extract parameter names from a route pattern
- *
- * @example
- * type UserParams = Params<"/users/:id/posts/:postId">; // { id: string; postId: string }
- */
-export type Params<P extends string> = P extends
-  `${string}/:${infer Param}/${infer Rest}`
-  ? { [K in Param]: string } & Params<`/${Rest}`>
-  : P extends `${string}/:${infer Param}` ? { [K in Param]: string }
-  : P extends `${string}/*/${infer Rest}` ? { "*": string } & Params<`/${Rest}`>
-  : P extends `${string}/*` ? { "*": string }
-  // deno-lint-ignore ban-types
-  : {};
 
 type RouteHandler<P extends string, T> = (params: Params<P>) => T;
 
@@ -40,8 +28,8 @@ type RouteHandler<P extends string, T> = (params: Params<P>) => T;
  */
 export type Routes<
   T,
-  R extends { [P in keyof R & string]: RouteHandler<P, T> },
-> = R;
+  Route extends { [Paths in keyof Route & string]: RouteHandler<Paths, T> },
+> = Route;
 
 /**
  * Creates a router function that matches paths against defined routes with parameters
@@ -49,7 +37,7 @@ export type Routes<
  * Supports three types of route segments:
  * - Static segments: Exact string matches (e.g., "/users")
  * - Named parameters: Segments starting with : (e.g., "/:id")
- * - Splat parameter: A "*" segment that captures the rest of the path
+ * - Splat parameter: A "*" segment that can only appear at the end of a route
  *
  * @example
  * ```ts
@@ -89,8 +77,13 @@ export function createMatcher<T>(
 
         const pattern = route
           .split("/")
-          .map((segment) => {
+          .map((segment, k, segments) => {
             if (segment === "*") {
+              if (k !== segments.length - 1) {
+                throw new Error(
+                  "The `*` catchall route parameter can only appear at the end of a route",
+                );
+              }
               i++;
               return `(?<_splat>.*)`;
             }

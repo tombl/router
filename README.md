@@ -48,7 +48,7 @@ The router supports three types of route segments:
 
 - **Static segments**: Exact string matches (e.g., `/about`)
 - **Named parameters**: Segments starting with `:` (e.g., `/:id`)
-- **Splat parameter**: A `*` segment that captures the rest of the path
+- **Splat parameter**: A `*` segment that can only appear at the end of a route
 
 ### Type-Safe Route Parameters
 
