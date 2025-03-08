@@ -136,6 +136,7 @@ export function createBrowserRouter(config: RouterConfig): BrowserRouter {
     } else {
       history.pushState(null, "", url);
     }
+    scrollTo(0, 0);
     handle(pathname);
   }
 
