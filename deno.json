@@ -1,6 +1,6 @@
 {
   "name": "@tombl/router",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "exports": {
     "./browser": "./browser.ts",
     "./http": "./http.ts",
