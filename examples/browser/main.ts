@@ -13,7 +13,10 @@ const router = createBrowserRouter({
         <h1>Hello!</h1>
         <p>This is the index page.</p>
         <ul>
-          ${Array.from({ length: 100 }, (_, i) => html`<li>${i}</li>`).join("")}
+          ${Array.from({ length: 100 }, (_, i) =>
+          html`
+            <li>${i}</li>
+          `).join("")}
         </ul>
         <a href="/joe#50">Greet joe</a>
       `;
@@ -24,10 +27,11 @@ const router = createBrowserRouter({
         <h1>Hello ${name}!</h1>
         <p>This is a page with a parameter.</p>
         <ul>
-          ${
-        Array.from({ length: 100 }, (_, i) => html`<li id="${i}">${i}</li>`)
-          .join("")
-      }
+          ${Array.from({ length: 100 }, (_, i) =>
+          html`
+            <li id="${i}">${i}</li>
+          `)
+          .join("")}
         </ul>
         <a href="/">Go back</a>
       `;
