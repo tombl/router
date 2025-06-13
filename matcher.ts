@@ -11,6 +11,7 @@ import { escape } from "./regexp-escape.ts";
 export type { Params };
 
 const NAMED_SEGMENT = /^:([a-z][a-z0-9]*)$/i;
+const ENDS_WITH_NUMBER = /_\d+$/;
 
 /**
  * The type returned by {@link createMatcher}, representing a compiled match function
@@ -85,14 +86,14 @@ export function createMatcher<T>(
                 );
               }
               i++;
-              return `(?<_splat>.*)`;
+              return `(?<splat>.*)`;
             }
 
             const match = NAMED_SEGMENT.exec(segment);
             if (match) {
               const [, name] = match;
               i++;
-              return `(?<${name}>[^/]+?)`;
+              return `(?<${name}_${i}>[^/]+?)`;
             }
 
             return escape(segment);
@@ -111,10 +112,18 @@ export function createMatcher<T>(
     const idx = mapping[match.findIndex((m, i) => i && m !== undefined) - 1];
     const fn = entries[idx][1];
 
-    const groups = match.groups ?? {};
-    if ("_splat" in groups) {
-      groups["*"] = groups._splat;
-      delete groups._splat;
+    const groups: Record<string, string> = {};
+    for (let key in match.groups) {
+      const value = match.groups[key];
+      if (value === undefined) continue;
+
+      if (key === "splat") {
+        key = "*";
+      } else {
+        key = key.replace(ENDS_WITH_NUMBER, "");
+      }
+
+      groups[key] = value;
     }
 
     return fn(groups);
