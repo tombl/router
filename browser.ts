@@ -150,7 +150,9 @@ export function createBrowserRouter(config: RouterConfig): BrowserRouter {
   }
 
   function onClick(event: MouseEvent) {
-    const link = (event.target as Element).closest("a");
+    const link = event.composedPath().find((target) =>
+      target instanceof HTMLAnchorElement
+    );
 
     if (
       link &&
