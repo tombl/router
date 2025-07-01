@@ -20,6 +20,11 @@ const router = createBrowserRouter({
         </ul>
         <a href="/joe#50">Greet joe</a>
       `;
+      document.body
+        .appendChild(document.createElement("div"))
+        .attachShadow({ mode: "open" }).innerHTML = html`
+          <a href="/joe#49">Greet joe (shadow)</a>
+        `;
     },
     "/:name": ({ name }) => {
       document.title = `Hello ${name}`;
