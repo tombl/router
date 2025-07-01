@@ -117,43 +117,78 @@ export default router;
 > [!NOTE]
 > When bundled, minified, and gzipped, `@tombl/router/browser` is 1kb
 
-For client-side single-page applications in the browser:
+For client-side single-page applications in the browser. Supports async route
+handlers with proper navigation cancellation:
 
 ```ts
 import { createBrowserRouter } from "@tombl/router/browser";
 
 const router = createBrowserRouter({
   routes: {
-    "/": () => {
+    "/": async ({ signal }) => {
+      // Simulate loading data
+      const data = await fetch("/api/home");
+
+      // Check if navigation was cancelled
+      if (signal.aborted) return;
+
       document.body.innerHTML = "<h1>Home Page</h1>";
     },
-    "/about": () => {
+    "/about": ({ signal }) => {
       document.body.innerHTML = "<h1>About Page</h1>";
     },
-    "/users/:id": ({ id }) => {
-      // id is properly typed as string
-      document.body.innerHTML = `<h1>User ${id}</h1>`;
+    "/users/:id": async ({ params: { id }, signal }) => {
+      // Load user data asynchronously
+      const user = await fetch(`/api/users/${id}`).then((r) => r.json());
+
+      // Check if navigation was cancelled while loading
+      if (signal.aborted) return;
+
+      document.body.innerHTML = `<h1>User ${user.name}</h1>`;
     },
-    "/posts/:postId/comments/:commentId": ({ postId, commentId }) => {
-      // Both parameters are properly typed
+    "/posts/:postId/comments/:commentId": (
+      { params: { postId, commentId }, signal },
+    ) => {
       document.body.innerHTML = `<h1>Post ${postId}, Comment ${commentId}</h1>`;
     },
   },
-  notFound: (pathname) => {
+  notFound: async ({ pathname, signal }) => {
+    // Even 404 handlers can be async
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    if (signal.aborted) return;
+
     document.body.innerHTML = `<h1>404 - Page not found: ${pathname}</h1>`;
   },
 });
 
 // Start the router
-router.start();
+await router.start();
 
 // Programmatic navigation
-document.querySelector("button#nav-home").addEventListener("click", () => {
-  router.navigate("/");
-});
+document.querySelector("button#nav-home").addEventListener(
+  "click",
+  async () => {
+    await router.navigate("/");
+  },
+);
 
 // The router automatically handles link clicks for same-origin links
 ```
+
+### Key Features
+
+- **Async Route Handlers**: Route handlers can be async functions that load data
+  before navigation completes
+- **Navigation Cancellation**: If a user navigates away before an async handler
+  completes, the previous navigation is automatically cancelled using
+  `AbortSignal`
+- **URL Updates After Loading**: The URL only updates after the route handler
+  completes, matching Multi-Page Application (MPA) behavior
+- **Type-Safe Parameters**: Route parameters are fully typed based on route
+  patterns
+- **Automatic Link Handling**: Clicks on same-origin links are automatically
+  intercepted and handled by the router
 
 ## License
 

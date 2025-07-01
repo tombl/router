@@ -9,11 +9,15 @@ import { createMatcher, type Params } from "./matcher.ts";
 /**
  * A route handler function for the browser router
  */
-type RouteHandler<T extends string> = (params: Params<T>) => void;
+type RouteHandler<T extends string> = (
+  ctx: { params: Params<T>; signal: AbortSignal },
+) => void | Promise<void>;
 
 interface RouterConfig {
   routes: Record<string, RouteHandler<string>>;
-  notFound?: (pathname: string) => void;
+  notFound?: (
+    ctx: { pathname: string; signal: AbortSignal },
+  ) => void | Promise<void>;
 }
 /**
  * Router configuration interface
@@ -33,7 +37,7 @@ export interface BrowserRouter {
    * This is the standard way to navigate to a new page in your application.
    * It adds a new entry to the browser history stack.
    */
-  navigate(pathname: string): void;
+  navigate(pathname: string): Promise<void>;
 
   /**
    * Redirects to a new path by replacing the current history entry
@@ -41,7 +45,7 @@ export interface BrowserRouter {
    * Use this when you want to navigate without adding to the browser's
    * history stack, such as for redirects or when replacing an invalid URL.
    */
-  redirect(pathname: string): void;
+  redirect(pathname: string): Promise<void>;
 
   /**
    * Starts the router by attaching event listeners for navigation events
@@ -49,7 +53,7 @@ export interface BrowserRouter {
    * Call this method to activate the router and handle navigation events.
    * The router is not automatically started when created.
    */
-  start(): void;
+  start(): Promise<void>;
 
   /**
    * Stops the router by removing event listeners
@@ -100,9 +104,11 @@ export function createBrowserRouter<
 export function createBrowserRouter(config: RouterConfig): BrowserRouter;
 
 export function createBrowserRouter(config: RouterConfig): BrowserRouter {
-  // Create a route mapping with handlers wrapped to pass params
-  const routes: Record<string, (params: Record<string, string>) => () => void> =
-    {};
+  // Create a route mapping with handlers wrapped to pass params and signal
+  const routes: Record<
+    string,
+    (params: Record<string, string>) => (signal: AbortSignal) => Promise<void>
+  > = {};
 
   // Transform route handlers
   for (
@@ -111,45 +117,65 @@ export function createBrowserRouter(config: RouterConfig): BrowserRouter {
     )
   ) {
     routes[pathname] = (params) => {
-      return () => routeHandler(params);
+      return async (signal: AbortSignal) => {
+        await routeHandler({ params, signal });
+      };
     };
   }
 
-  const matcher = createMatcher<() => void>(routes);
+  const matcher = createMatcher<(signal: AbortSignal) => Promise<void>>(routes);
   const notFound = config.notFound;
+  let controller: AbortController | null = null;
 
-  function handle(pathname: string) {
+  async function handle(pathname: string, signal: AbortSignal): Promise<void> {
     const handler = matcher(pathname);
 
     if (handler === null) {
-      notFound?.(pathname);
+      await notFound?.({ pathname, signal });
     } else {
-      handler();
+      await handler(signal);
     }
   }
 
-  function navigate(pathname: string, isRedirect: boolean) {
+  async function navigate(
+    init: { pathname: string; hash?: string; search?: string },
+    isRedirect: boolean,
+  ): Promise<void> {
+    controller?.abort();
+    controller = new AbortController();
+    const { signal } = controller;
+
+    await handle(init.pathname, signal);
+
+    if (signal.aborted) return;
+
     const url = new URL(location.href);
-    url.pathname = pathname;
+    url.pathname = init.pathname;
+    if (init.search !== undefined) url.search = init.search;
+    if (init.hash !== undefined) url.hash = init.hash;
     if (isRedirect) {
       history.replaceState(null, "", url);
     } else {
       history.pushState(null, "", url);
     }
     scrollTo(0, 0);
-    handle(pathname);
   }
 
-  function onPopState(event: PopStateEvent) {
+  async function onPopState(event: PopStateEvent) {
     if (matcher(location.pathname) === null && !notFound) {
       return;
     }
 
     event.preventDefault();
-    handle(location.pathname);
+
+    controller?.abort();
+    controller = new AbortController();
+    const { signal } = controller;
+
+    await handle(location.pathname, signal);
   }
 
-  function onClick(event: MouseEvent) {
+  async function onClick(event: MouseEvent) {
     const link = event.composedPath().find((target) =>
       target instanceof HTMLAnchorElement
     );
@@ -175,28 +201,41 @@ export function createBrowserRouter(config: RouterConfig): BrowserRouter {
       }
 
       event.preventDefault();
-      const hashChanged = location.hash !== link.hash;
-      navigate(link.pathname, false);
-      if (hashChanged) {
-        location.hash = link.hash;
-        if (link.hash === "" || link.hash === "#") {
-          dispatchEvent(new HashChangeEvent("hashchange"));
+      const oldLocation = new URL(location.href);
+      await navigate(link, false);
+      if (oldLocation.hash !== location.hash) {
+        // Only set the hash if we have one, because location.hash = ""`
+        // actually sets it to "#"
+        if (link.hash) location.hash = link.hash;
+
+        if (
+          oldLocation.pathname === location.pathname &&
+          oldLocation.search === location.search
+        ) {
+          dispatchEvent(
+            new HashChangeEvent("hashchange", {
+              oldURL: oldLocation.href,
+              newURL: location.href,
+            }),
+          );
         }
       }
     }
   }
 
   return {
-    navigate: (pathname: string) => navigate(pathname, false),
-    redirect: (pathname: string) => navigate(pathname, true),
-    start: () => {
+    navigate: (pathname: string) => navigate({ pathname }, false),
+    redirect: (pathname: string) => navigate({ pathname }, true),
+    async start() {
       addEventListener("popstate", onPopState);
       document.body.addEventListener("click", onClick);
-      handle(location.pathname);
+      await navigate(location, true);
     },
-    stop: () => {
+    stop() {
       removeEventListener("popstate", onPopState);
       document.body.removeEventListener("click", onClick);
+      controller?.abort();
+      controller = null;
     },
   };
 }
