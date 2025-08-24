@@ -65,18 +65,22 @@ export function href(route: Route, params: Record<string, string>): string {
   return url;
 }
 
-export function createMatcher<const R extends readonly Route[]>(
-  routes: R,
-): (pathname: string) =>
+export type Matcher<R extends readonly Route[]> = (
+  pathname: string,
+) =>
   | {
     [I in keyof R]: { path: R[I]["path"]; params: Params<R[I]["path"]> };
   }[number]
   | null;
-export function createMatcher(
-  routes: Route[],
-): (
+
+type AnyMatcher = (
   pathname: string,
-) => { path: string; params: Record<string, string> } | null {
+) => { path: string; params: Record<string, string> } | null;
+
+export function createMatcher<const R extends readonly Route[]>(
+  routes: R,
+): Matcher<R>;
+export function createMatcher(routes: Route[]): AnyMatcher {
   if (routes.length === 0) return () => null;
 
   const mapping: number[] = [];
