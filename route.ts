@@ -45,14 +45,16 @@ export function href<R extends Route>(
 ): string;
 export function href(route: Route, params: Record<string, string>): string {
   let url = route.segments
-    .map((seg) => {
-      switch (seg.type) {
+    .map((segment) => {
+      switch (segment.type) {
         case "splat":
           return params["*"];
         case "param":
-          return encodeURIComponent(params[seg.name]);
+          return encodeURIComponent(params[segment.name]);
+        case "static":
+          return segment.value;
         default:
-          return seg.value;
+          segment satisfies never;
       }
     })
     .join("/");
@@ -87,17 +89,18 @@ export function createMatcher(
 
         const pattern = route.segments
           .map((segment) => {
-            if (segment.type === "splat") {
-              i++;
-              return `(?<splat>.*)`;
+            switch (segment.type) {
+              case "splat":
+                i++;
+                return `(?<splat>.*)`;
+              case "param":
+                i++;
+                return `(?<${segment.name}_${i}>[^/]+?)`;
+              case "static":
+                return escape(segment.value);
+              default:
+                segment satisfies never;
             }
-
-            if (segment.type === "param") {
-              i++;
-              return `(?<${segment.name}_${i}>[^/]+?)`;
-            }
-
-            return escape(segment.value);
           })
           .join("/");
 
