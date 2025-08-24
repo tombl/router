@@ -1,6 +1,7 @@
 import type { Params } from "./params.ts";
 import { escape } from "./regexp-escape.ts";
 
+const NAMED_SEGMENT = /^:([a-z][a-z0-9]*)$/i;
 const ENDS_WITH_NUMBER = /_\d+$/;
 
 type Segment =
@@ -18,8 +19,8 @@ export function createRoute<const Path extends string>(
 ): Route<Path> {
   return {
     path,
-    segments: path.split("/").map<Segment>((seg, i, segments) => {
-      if (seg === "*") {
+    segments: path.split("/").map<Segment>((segment, i, segments) => {
+      if (segment === "*") {
         if (i !== segments.length - 1) {
           throw new Error(
             "The `*` catchall route parameter can only appear at the end of a route",
@@ -28,13 +29,12 @@ export function createRoute<const Path extends string>(
         return { type: "splat" };
       }
 
-      if (seg.startsWith(":")) {
-        const name = seg.slice(1);
-        if (!name) throw new Error("Empty parameter name");
-        return { type: "param", name };
+      const match = NAMED_SEGMENT.exec(segment);
+      if (match !== null) {
+        return { type: "param", name: match[1] };
       }
 
-      return { type: "static", value: seg };
+      return { type: "static", value: segment };
     }),
   };
 }
