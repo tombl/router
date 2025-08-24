@@ -37,4 +37,5 @@ type ParamsInner<Path extends string> = Path extends
  */
 export type Params<Path extends string> = Path extends `${infer P}/*`
   ? ParamsInner<P> & { "*": string }
+  : keyof ParamsInner<Path> extends never ? Record<string, never>
   : ParamsInner<Path>;
