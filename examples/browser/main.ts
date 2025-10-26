@@ -7,7 +7,13 @@ const html = String.raw;
 
 const router = createBrowserRouter({
   routes: {
-    "/": () => {
+    "/": async ({ signal }) => {
+      // Simulate async work
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Check if navigation was cancelled
+      if (signal.aborted) return;
+
       document.title = "Home";
       document.body.innerHTML = html`
         <h1>Hello!</h1>
@@ -19,6 +25,7 @@ const router = createBrowserRouter({
             `).join("")}
         </ul>
         <a href="/joe#50">Greet joe</a>
+        <a href="/slow">Test slow loading</a>
       `;
       document.body
         .appendChild(document.createElement("div"))
@@ -26,7 +33,27 @@ const router = createBrowserRouter({
           <a href="/joe#49">Greet joe (shadow)</a>
         `;
     },
-    "/:name": ({ name }) => {
+    "/slow": async ({ signal }) => {
+      // Simulate slow async work
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Check if navigation was cancelled
+      if (signal.aborted) return;
+
+      document.title = "Slow Page";
+      document.body.innerHTML = html`
+        <h1>Slow page loaded!</h1>
+        <p>This page took 2 seconds to load.</p>
+        <a href="/">Go back</a>
+      `;
+    },
+    "/:name": async ({ params: { name }, signal }) => {
+      // Simulate async work
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Check if navigation was cancelled
+      if (signal.aborted) return;
+
       document.title = `Hello ${name}`;
       document.body.innerHTML = html`
         <h1>Hello ${name}!</h1>
@@ -42,7 +69,13 @@ const router = createBrowserRouter({
       `;
     },
   },
-  notFound: (pathname) => {
+  notFound: async ({ pathname, signal }) => {
+    // Simulate async work
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Check if navigation was cancelled
+    if (signal.aborted) return;
+
     document.title = "Not found";
     document.body.innerHTML = html`
       <h1>Page not found</h1>
