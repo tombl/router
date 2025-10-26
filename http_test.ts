@@ -1,4 +1,4 @@
-import { assertEquals } from "jsr:@std/assert";
+import { assertEquals } from "@std/assert";
 import { createHttpRouter } from "./http.ts";
 
 Deno.test("HTTP router handles basic routes with different methods", async () => {

@@ -1,4 +1,4 @@
-import { assertType, type IsExact } from "jsr:@std/testing/types";
+import { assertType, type IsExact } from "@std/testing/types";
 import type { Params } from "./params.ts";
 
 // deno-lint-ignore ban-types
